@@ -12,24 +12,6 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// Public pages
-Route::get('/jadwal', function () {
-    return Inertia::render('Jadwal');
-});
-
-Route::get('/harga', function () {
-    return Inertia::render('Harga');
-});
-
-Route::get('/lapangan', function () {
-    return Inertia::render('Lapangan');
-});
-
-Route::get('/tentang', function () {
-    return Inertia::render('Tentang');
-});
-
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
