@@ -57,8 +57,8 @@ Route::group([
 
 // Email Verification
 Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])
-    ->name('verification.verify');
+    ->name('api.verification.verify');
 
 Route::post('/email/resend', [VerificationController::class, 'resend'])
     ->middleware(['auth:api', 'throttle:6,1'])
-    ->name('verification.resend');
+    ->name('api.verification.resend');
