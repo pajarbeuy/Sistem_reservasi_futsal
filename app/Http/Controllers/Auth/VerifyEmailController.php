@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class VerifyEmailController extends Controller
 {
@@ -23,5 +25,15 @@ class VerifyEmailController extends Controller
         }
 
         return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+    }
+
+    /**
+     * Check the authenticated user's email verification state.
+     */
+    public function status(Request $request): JsonResponse
+    {
+        return response()->json([
+            'verified' => $request->user()->hasVerifiedEmail(),
+        ]);
     }
 }

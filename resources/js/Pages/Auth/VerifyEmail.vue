@@ -1,8 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     status: {
@@ -11,6 +11,8 @@ const props = defineProps({
 });
 
 const form = useForm({});
+const isCheckingVerification = ref(false);
+let verificationTimer = null;
 
 const submit = () => {
     form.post(route('verification.send'));
@@ -19,6 +21,34 @@ const submit = () => {
 const verificationLinkSent = computed(
     () => props.status === 'verification-link-sent',
 );
+
+const redirectIfVerified = async () => {
+    if (isCheckingVerification.value) {
+        return;
+    }
+
+    isCheckingVerification.value = true;
+
+    try {
+        const response = await window.axios.get(route('verification.status'));
+
+        if (response.data.verified) {
+            window.clearInterval(verificationTimer);
+            router.visit(route('dashboard', { verified: 1 }));
+        }
+    } finally {
+        isCheckingVerification.value = false;
+    }
+};
+
+onMounted(() => {
+    redirectIfVerified();
+    verificationTimer = window.setInterval(redirectIfVerified, 3000);
+});
+
+onBeforeUnmount(() => {
+    window.clearInterval(verificationTimer);
+});
 </script>
 
 <template>
@@ -37,6 +67,10 @@ const verificationLinkSent = computed(
         >
             A new verification link has been sent to the email address you
             provided during registration.
+        </div>
+
+        <div class="mb-4 text-sm text-gray-500">
+            After you verify from Mailpit, this page will continue automatically.
         </div>
 
         <form @submit.prevent="submit">
