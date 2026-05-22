@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\FieldController;
+use App\Http\Controllers\Api\PriceController;
+use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\VerificationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -23,16 +25,42 @@ Route::group([
     Route::get('/user-profile', [AuthController::class, 'userProfile'])->middleware('auth:api');
 });
 
-// Fields CRUD
+// Fields CRUD - Public GET, Protected POST/PUT/DELETE
 Route::group([
-    'middleware' => 'auth:api',
     'prefix' => 'fields'
 ], function () {
     Route::get('/', [FieldController::class, 'index']);
     Route::get('/{field}', [FieldController::class, 'show']);
-    Route::post('/', [FieldController::class, 'store']);
-    Route::put('/{field}', [FieldController::class, 'update']);
-    Route::delete('/{field}', [FieldController::class, 'destroy']);
+    
+    // Admin only operations
+    Route::middleware('auth:api')->group(function () {
+        Route::post('/', [FieldController::class, 'store']);
+        Route::put('/{field}', [FieldController::class, 'update']);
+        Route::delete('/{field}', [FieldController::class, 'destroy']);
+    });
+});
+
+// Prices - Public GET, Protected POST/PUT/DELETE
+Route::group([
+    'prefix' => 'prices'
+], function () {
+    Route::get('/', [PriceController::class, 'index']);
+    Route::get('/{price}', [PriceController::class, 'show']);
+    
+    // Admin only operations
+    Route::middleware('auth:api')->group(function () {
+        Route::post('/', [PriceController::class, 'store']);
+        Route::put('/{price}', [PriceController::class, 'update']);
+        Route::delete('/{price}', [PriceController::class, 'destroy']);
+    });
+});
+
+// Schedule - Public GET available slots
+Route::group([
+    'prefix' => 'schedule'
+], function () {
+    Route::get('/available-slots', [ScheduleController::class, 'getAvailableSlots']);
+    Route::get('/day-schedule', [ScheduleController::class, 'getDaySchedule']);
 });
 
 // Bookings

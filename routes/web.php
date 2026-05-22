@@ -29,6 +29,10 @@ Route::get('/tentang', function () {
     return Inertia::render('Tentang');
 });
 
+Route::get('/booking-form', function () {
+    return Inertia::render('BookingForm');
+})->middleware(['auth', 'verified'])->name('booking.form');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
