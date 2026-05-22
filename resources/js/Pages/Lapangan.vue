@@ -1,11 +1,40 @@
 <script setup>
+import { ref, onMounted } from 'vue';
 import FutsalLayout from '@/Layouts/FutsalLayout.vue';
-import LapanganCard from '@/Components/LapanganCard.vue';
 import FooterFutsal from '@/Components/FooterFutsal.vue';
 
-const onSelect = () => {
-    // nanti bisa diarahkan ke proses booking
+const fields = ref([]);
+const loading = ref(true);
+const error = ref('');
+
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+    }).format(value);
 };
+
+const loadFields = async () => {
+    try {
+        const response = await fetch('/api/fields');
+        const data = await response.json();
+        fields.value = data.data || data;
+    } catch (err) {
+        error.value = 'Gagal memuat daftar lapangan: ' + err.message;
+        console.error('Error loading fields:', err);
+    } finally {
+        loading.value = false;
+    }
+};
+
+const onSelect = () => {
+    window.location.href = '/booking-form';
+};
+
+onMounted(() => {
+    loadFields();
+});
 </script>
 
 <template>
@@ -14,28 +43,55 @@ const onSelect = () => {
             <div class="max-w-6xl mx-auto px-4">
                 <div class="py-10">
                     <h1 class="text-4xl md:text-5xl font-bold">Pilih Lapangan</h1>
-                    <p class="text-slate-300 mt-3">Lapangan A, B, dan C</p>
+                    <p class="text-slate-300 mt-3">Lapangan futsal berkualitas dengan fasilitas lengkap</p>
                 </div>
 
-                <div class="grid md:grid-cols-3 gap-6 pb-10">
-                    <LapanganCard
-                        lapangan="A"
-                        image-src="/images/field.png"
-                        description="Lapangan A siap untuk pertandingan dengan pencahayaan maksimal dan area tribun yang nyaman."
-                        @select="onSelect"
-                    />
-                    <LapanganCard
-                        lapangan="B"
-                        image-src="/images/field.png"
-                        description="Lapangan B cocok untuk latihan terstruktur maupun kompetisi santai bersama teman-teman."
-                        @select="onSelect"
-                    />
-                    <LapanganCard
-                        lapangan="C"
-                        image-src="/images/field.png"
-                        description="Lapangan C dengan permukaan lapangan terawat serta suasana pertandingan yang kompetitif."
-                        @select="onSelect"
-                    />
+                <!-- Error Message -->
+                <div v-if="error" class="mb-6 p-4 bg-red-500/20 border border-red-500 rounded text-red-200">
+                    {{ error }}
+                </div>
+
+                <!-- Loading State -->
+                <div v-if="loading" class="text-center py-8">
+                    <p class="text-white text-lg">Memuat daftar lapangan...</p>
+                </div>
+
+                <!-- Fields Grid -->
+                <div v-else class="pb-10">
+                    <div v-if="fields.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="field in fields" :key="field.id"
+                            class="bg-white/10 backdrop-blur rounded-lg overflow-hidden border border-white/20 hover:border-orange-500 transition group cursor-pointer"
+                            @click="onSelect">
+                            <div class="h-48 bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center overflow-hidden">
+                                <svg class="w-24 h-24 text-white/50" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 4a1 1 0 011-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5H3a1 1 0 01-1-1zm8-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5h-5a1 1 0 010-2z"/>
+                                </svg>
+                            </div>
+                            <div class="p-6">
+                                <h3 class="text-2xl font-bold text-white mb-2">{{ field.name }}</h3>
+                                <p class="text-slate-300 text-sm mb-4">{{ field.type }}</p>
+                                <p class="text-slate-300 text-sm mb-4">
+                                    Lapangan futsal dengan standar internasional. Cocok untuk pertandingan, latihan, atau acara keluarga.
+                                </p>
+                                <div class="flex justify-between items-center">
+                                    <p class="text-orange-400 font-semibold">
+                                        {{ formatCurrency(field.price_per_hour) }}/jam
+                                    </p>
+                                    <span v-if="field.is_available" class="text-green-400 text-sm font-semibold">Tersedia</span>
+                                    <span v-else class="text-red-400 text-sm font-semibold">Tidak Tersedia</span>
+                                </div>
+                                <button
+                                    class="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg transition"
+                                >
+                                    Pesan Sekarang
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="text-center py-8">
+                        <p class="text-white text-lg">Belum ada lapangan tersedia.</p>
+                    </div>
                 </div>
             </div>
 
