@@ -85,15 +85,15 @@ onMounted(loadBookings);
         <div class="py-12">
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
                 <div class="space-y-4 mb-6">
-                    <div v-if="message" class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">{{ message }}</div>
-                    <div v-if="error" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</div>
+                    <div v-if="message" class="rounded-lg border border-emerald-700 bg-emerald-900/20 px-4 py-3 text-sm text-emerald-200">{{ message }}</div>
+                    <div v-if="error" class="rounded-lg border border-rose-700 bg-rose-900/20 px-4 py-3 text-sm text-rose-200">{{ error }}</div>
                 </div>
 
-                <div v-if="loading" class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">
+                <div v-if="loading" class="rounded-2xl border border-gray-700 bg-gray-800 p-6 text-center text-gray-300 shadow-sm">
                     Memuat booking...
                 </div>
 
-                <div v-else-if="!bookings.length" class="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 shadow-sm">
+                <div v-else-if="!bookings.length" class="rounded-2xl border border-gray-700 bg-gray-800 p-6 text-center text-gray-300 shadow-sm">
                     Belum ada booking. Silakan lakukan booking terlebih dahulu.
                 </div>
 

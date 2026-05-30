@@ -6,11 +6,88 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
-});
+})->name('home');
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+use App\Models\Field;
+use App\Models\Price;
+use App\Models\Booking;
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    // User Dashboard - Hanya riwayat booking & transaksi
+    Route::get('/dashboard', function () {
+        return Inertia::render('UserDashboard', [
+            'bookings' => Booking::where('user_id', auth()->id())->with('field')->orderBy('created_at', 'desc')->get(),
+            'payments' => \App\Models\Payment::where('user_id', auth()->id())->orderBy('created_at', 'desc')->get()
+        ]);
+    })->name('dashboard');
+
+    // Admin Dashboard - Akses semua fitur
+    Route::middleware('admin')->group(function () {
+        Route::get('/admin/dashboard', function () {
+            return Inertia::render('Dashboard', [
+                'fields' => Field::all(),
+                'prices' => Price::all(),
+                'bookings' => Booking::with(['user', 'field'])->orderBy('created_at', 'desc')->get()
+            ]);
+        })->name('admin.dashboard');
+
+        // Field CRUD
+        Route::post('/dashboard/fields', function (\Illuminate\Http\Request $request) {
+            Field::create($request->validate([
+                'name' => 'required|string',
+                'type' => 'required|string',
+                'price_per_hour' => 'required|numeric',
+                'is_available' => 'boolean'
+            ]));
+            return back();
+        });
+        
+        Route::put('/dashboard/fields/{field}', function (\Illuminate\Http\Request $request, Field $field) {
+            $field->update($request->validate([
+                'name' => 'required|string',
+                'type' => 'required|string',
+                'price_per_hour' => 'required|numeric',
+                'is_available' => 'boolean'
+            ]));
+            return back();
+        });
+
+        Route::delete('/dashboard/fields/{field}', function (Field $field) {
+            $field->delete();
+            return back();
+        });
+
+        // Price CRUD
+        Route::post('/dashboard/prices', function (\Illuminate\Http\Request $request) {
+            Price::create($request->validate([
+                'time_period' => 'required|string',
+                'start_time' => 'required',
+                'end_time' => 'required',
+                'price_per_hour' => 'required|numeric',
+                'description' => 'nullable|string',
+                'is_active' => 'boolean'
+            ]));
+            return back();
+        });
+
+        Route::put('/dashboard/prices/{price}', function (\Illuminate\Http\Request $request, Price $price) {
+            $price->update($request->validate([
+                'time_period' => 'required|string',
+                'start_time' => 'required',
+                'end_time' => 'required',
+                'price_per_hour' => 'required|numeric',
+                'description' => 'nullable|string',
+                'is_active' => 'boolean'
+            ]));
+            return back();
+        });
+
+        Route::delete('/dashboard/prices/{price}', function (Price $price) {
+            $price->delete();
+            return back();
+        });
+    }); // Closing the admin middleware group
+}); // Closing the outer middleware group
 
 // Public pages
 Route::get('/jadwal', function () {
