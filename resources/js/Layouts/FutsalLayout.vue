@@ -37,12 +37,25 @@ const menuOpen = ref(false);
 
 
                 <div class="hidden md:flex gap-3 items-center">
-                    <Link href="/login" class="px-5 py-2 border border-white text-white text-sm font-semibold rounded hover:bg-white hover:text-gray-900 transition no-underline">
-                        Masuk
-                    </Link>
-                    <Link href="/register" class="px-5 py-2 bg-green-500 text-white text-sm font-semibold rounded hover:bg-green-600 transition no-underline">
-                        Daftar
-                    </Link>
+                    <template v-if="$page.props.auth.user">
+                        <div class="flex items-center gap-3">
+                            <span class="text-white text-sm font-medium">Halo, {{ $page.props.auth.user.name }}</span>
+                            <Link :href="$page.props.auth.isAdmin ? '/admin/dashboard' : '/dashboard'" class="px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded hover:bg-green-600 transition no-underline">
+                                Dashboard
+                            </Link>
+                            <Link href="/logout" method="post" as="button" class="px-4 py-2 border border-red-500 text-red-500 text-sm font-semibold rounded hover:bg-red-500 hover:text-white transition no-underline bg-transparent cursor-pointer">
+                                Logout
+                            </Link>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <Link href="/login" class="px-5 py-2 border border-white text-white text-sm font-semibold rounded hover:bg-white hover:text-gray-900 transition no-underline">
+                            Masuk
+                        </Link>
+                        <Link href="/register" class="px-5 py-2 bg-green-500 text-white text-sm font-semibold rounded hover:bg-green-600 transition no-underline">
+                            Daftar
+                        </Link>
+                    </template>
                 </div>
 
                 <button
