@@ -1,7 +1,9 @@
 <script setup>
+defineOptions({ name: 'LapanganPage' });
 import { ref, onMounted } from 'vue';
 import FutsalLayout from '@/Layouts/FutsalLayout.vue';
 import FooterFutsal from '@/Components/FooterFutsal.vue';
+import { apiGet } from '@/utils/api';
 
 const fields = ref([]);
 const loading = ref(true);
@@ -17,8 +19,7 @@ const formatCurrency = (value) => {
 
 const loadFields = async () => {
     try {
-        const response = await fetch('/api/fields');
-        const data = await response.json();
+        const data = await apiGet('/api/fields');
         fields.value = data.data || data;
     } catch (err) {
         error.value = 'Gagal memuat daftar lapangan: ' + err.message;
@@ -28,8 +29,8 @@ const loadFields = async () => {
     }
 };
 
-const onSelect = () => {
-    window.location.href = '/booking-form';
+const goToBooking = (fieldId) => {
+    window.location.href = `/lapangan/${fieldId}/booking`;
 };
 
 onMounted(() => {
@@ -59,9 +60,14 @@ onMounted(() => {
                 <!-- Fields Grid -->
                 <div v-else class="pb-10">
                     <div v-if="fields.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div v-for="field in fields" :key="field.id"
-                            class="bg-white/10 backdrop-blur rounded-lg overflow-hidden border border-white/20 hover:border-orange-500 transition group cursor-pointer"
-                            @click="onSelect">
+                        <div
+                            v-for="field in fields"
+                            :key="field.id"
+                            @click="goToBooking(field.id)"
+                            class="bg-white/10 backdrop-blur rounded-lg overflow-hidden border border-white/20 hover:border-orange-500 transition group cursor-pointer text-left"
+                            role="button"
+                            tabindex="0"
+                        >
                             <div class="h-48 bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center overflow-hidden">
                                 <svg class="w-24 h-24 text-white/50" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M2 4a1 1 0 011-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5H3a1 1 0 01-1-1zm8-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5h-5a1 1 0 010-2z"/>
@@ -71,7 +77,7 @@ onMounted(() => {
                                 <h3 class="text-2xl font-bold text-white mb-2">{{ field.name }}</h3>
                                 <p class="text-slate-300 text-sm mb-4">{{ field.type }}</p>
                                 <p class="text-slate-300 text-sm mb-4">
-                                    Lapangan futsal dengan standar internasional. Cocok untuk pertandingan, latihan, atau acara keluarga.
+                                    {{ field.description }}
                                 </p>
                                 <div class="flex justify-between items-center">
                                     <p class="text-orange-400 font-semibold">
@@ -80,11 +86,9 @@ onMounted(() => {
                                     <span v-if="field.is_available" class="text-green-400 text-sm font-semibold">Tersedia</span>
                                     <span v-else class="text-red-400 text-sm font-semibold">Tidak Tersedia</span>
                                 </div>
-                                <button
-                                    class="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg transition"
-                                >
+                                <div class="w-full mt-4 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg transition text-center">
                                     Pesan Sekarang
-                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>

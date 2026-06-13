@@ -11,7 +11,7 @@ const menuOpen = ref(false);
         <nav class="fixed w-full top-0 z-50 bg-slate-950/70 backdrop-blur-sm shadow-none">
 
             <div class="max-w-6xl mx-auto px-4 flex justify-between items-center h-[70px]">
-                <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-12 w-auto">
+                <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-12 w-auto mix-blend-lighten">
 
                 <div class="hidden md:flex gap-8 items-center">
                     <Link href="/" class="text-white hover:text-green-500 transition text-sm no-underline">

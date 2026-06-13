@@ -61,7 +61,7 @@ const scheduleItems = ref([
                     </div>
                 </div>
                 <div class="flex justify-center">
-                    <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-50 w-auto">
+                    <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-50 w-auto mix-blend-lighten">
                 </div>
             </div>
         </section>

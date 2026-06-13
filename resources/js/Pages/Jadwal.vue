@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import FutsalLayout from '@/Layouts/FutsalLayout.vue';
 import FooterFutsal from '@/Components/FooterFutsal.vue';
+import JadwalGrid from '@/Components/JadwalGrid.vue';
 
 const fields = ref([]);
 const schedules = ref([]);
@@ -13,6 +14,13 @@ const error = ref('');
 const loadFields = async () => {
     try {
         const response = await fetch('/api/fields');
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
         const data = await response.json();
         fields.value = data.data || data;
         if (fields.value.length > 0) {
@@ -32,11 +40,31 @@ const loadSchedule = async () => {
     error.value = '';
 
     try {
-        const response = await fetch(`/api/schedule/day-schedule?field_id=${selectedField.value}&date=${selectedDate.value}`);
+        // Get hourly slots for the selected field and date
+        const url = `/api/schedule/available-slots?field_id=${selectedField.value}&date=${selectedDate.value}`;
+        console.log('Loading schedule from:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
+        
         const data = await response.json();
+        console.log('Schedule response:', data);
 
-        if (data.success) {
-            schedules.value = data.schedule || [];
+        if (data.success && data.slots) {
+            schedules.value = data.slots.map(item => ({
+                start_time: item.start_time,
+                end_time: item.end_time,
+                price_per_hour: item.price_per_hour,
+                time_period: item.time_period,
+                status: item.available ? 'Tersedia' : 'Terbooking'
+            }));
         } else {
             error.value = data.message || 'Gagal memuat jadwal';
         }
@@ -48,10 +76,15 @@ const loadSchedule = async () => {
     }
 };
 
-const onChoose = () => {
-    // Redirect to booking form
-    window.location.href = '/booking-form';
-};
+const scheduleItems = computed(() => {
+    return schedules.value.map(schedule => ({
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        price_per_hour: schedule.price_per_hour,
+        time_period: schedule.time_period,
+        status: schedule.status
+    }));
+});
 
 const onDateChange = (newDate) => {
     selectedDate.value = newDate;
@@ -119,48 +152,25 @@ onMounted(() => {
                 </div>
 
                 <!-- Schedule Display -->
-                <div v-if="loading" class="text-center py-8">
-                    <p class="text-white text-lg">Memuat jadwal...</p>
-                </div>
-
-                <div v-else-if="schedules.length > 0" class="space-y-4 pb-10">
-                    <div v-for="schedule in schedules" :key="schedule.time_period"
-                        class="p-6 bg-white/10 rounded-lg backdrop-blur border border-white/20">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <h3 class="text-2xl font-bold text-white">{{ schedule.time_period }}</h3>
-                                <p class="text-slate-300 mt-2">
-                                    {{ schedule.start_time }} - {{ schedule.end_time }}
-                                </p>
-                                <p class="text-orange-400 font-semibold mt-2">
-                                    {{ schedule.price_per_hour.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }) }}/jam
-                                </p>
-                            </div>
-                            <div class="mt-4 md:mt-0 text-right">
-                                <p class="text-slate-300 text-sm">Status: 
-                                    <span :class="[
-                                        'font-semibold',
-                                        schedule.status === 'available' ? 'text-green-400' : 'text-yellow-400'
-                                    ]">
-                                        {{ schedule.status === 'available' ? 'Tersedia' : 'Sebagian Dipesan' }}
-                                    </span>
-                                </p>
-                                <p class="text-white mt-2">
-                                    <span class="font-bold text-green-400">{{ schedule.available_count }}</span> slot tersedia
-                                </p>
-                                <button
-                                    @click="onChoose"
-                                    class="mt-4 px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition"
-                                >
-                                    Pesan Sekarang
-                                </button>
-                            </div>
-                        </div>
+                <div class="mb-10 p-6 bg-white/10 rounded-lg backdrop-blur border border-white/20">
+                    <h2 class="text-xl font-semibold text-white mb-6">Pilih Slot Waktu</h2>
+                    
+                    <div v-if="loading" class="text-center py-8">
+                        <p class="text-white text-lg">Memuat jadwal...</p>
                     </div>
-                </div>
 
-                <div v-else class="text-center py-8">
-                    <p class="text-white text-lg">Tidak ada jadwal tersedia untuk tanggal ini.</p>
+                    <div v-else-if="schedules.length > 0">
+                        <JadwalGrid 
+                            :items="scheduleItems"
+                            :start="schedules[0]?.start_time || '08:00'"
+                            :end="schedules[schedules.length - 1]?.end_time || '19:30'"
+                            :slotDuration="90"
+                        />
+                    </div>
+
+                    <div v-else class="text-center py-8">
+                        <p class="text-white text-lg">Tidak ada jadwal tersedia untuk tanggal ini.</p>
+                    </div>
                 </div>
             </div>
 
@@ -168,4 +178,3 @@ onMounted(() => {
         </div>
     </FutsalLayout>
 </template>
-

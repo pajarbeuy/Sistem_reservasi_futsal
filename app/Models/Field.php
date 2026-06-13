@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'type', 'price_per_hour', 'is_available'])]
+#[Fillable(['name', 'type', 'description', 'price_per_hour', 'is_available'])]
 class Field extends Model
 {
     /** @use HasFactory<\Database\Factories\FieldFactory> */
@@ -15,5 +15,10 @@ class Field extends Model
     public function bookings(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function prices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Price::class);
     }
 }

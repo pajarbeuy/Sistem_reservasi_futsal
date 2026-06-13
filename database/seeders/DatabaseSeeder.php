@@ -15,17 +15,33 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Create roles and permissions first
+        $this->call([
+            RoleSeeder::class,
         ]);
 
-        // Seed prices and fields
+        // Create admin user
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin@futsal.com',
+            'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
+        ]);
+        $admin->assignRole('admin');
+
+        // Create regular user
+        $user = User::create([
+            'name' => 'User Demo',
+            'email' => 'user@futsal.com',
+            'password' => bcrypt('password123'),
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole('user');
+
+        // Seed fields first, then prices
         $this->call([
-            PriceSeeder::class,
             FieldSeeder::class,
+            PriceSeeder::class,
         ]);
     }
 }

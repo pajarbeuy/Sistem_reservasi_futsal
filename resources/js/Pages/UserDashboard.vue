@@ -113,12 +113,12 @@ const activeTab = ref('booking');
                                     <td class="p-3">
                                         <span 
                                             :class="{
-                                                'text-green-400': payment.status === 'completed',
-                                                'text-yellow-400': payment.status === 'pending',
-                                                'text-red-400': payment.status === 'failed'
+                                                'text-green-400': payment.payment_status === 'success',
+                                                'text-yellow-400': payment.payment_status === 'pending',
+                                                'text-red-400': payment.payment_status === 'failed'
                                             }"
                                             class="font-semibold">
-                                            {{ payment.status === 'completed' ? 'Berhasil' : payment.status === 'pending' ? 'Menunggu' : 'Gagal' }}
+                                            {{ payment.payment_status === 'success' ? 'Berhasil' : payment.payment_status === 'pending' ? 'Menunggu' : 'Gagal' }}
                                         </span>
                                     </td>
                                 </tr>

@@ -13,21 +13,21 @@ class ScheduleController extends Controller
 {
     /**
      * Get available time slots for a specific field and date
+     * Returns hourly slots (06:00-07:00, 07:00-08:00, etc.)
      */
     public function getAvailableSlots(Request $request)
     {
         $request->validate([
             'field_id' => 'required|exists:fields,id',
             'date' => 'required|date|after_or_equal:today',
-            'duration_minutes' => 'nullable|integer|min:30',
         ]);
 
         $fieldId = $request->field_id;
         $date = $request->date;
-        $durationMinutes = $request->duration_minutes ?? 60;
 
-        // Get all prices to determine time slots
-        $prices = Price::where('is_active', true)
+        // Get all hourly prices for this field
+        $prices = Price::where('field_id', $fieldId)
+            ->where('is_active', true)
             ->orderBy('start_time')
             ->get();
 
@@ -46,55 +46,46 @@ class ScheduleController extends Controller
 
         $availableSlots = [];
 
-        // Generate all possible time slots
+        // Check each hourly slot
         foreach ($prices as $price) {
-            $startTime = Carbon::createFromFormat('H:i:s', $price->start_time);
-            $endTime = Carbon::createFromFormat('H:i:s', $price->end_time);
-
-            $currentTime = $startTime->clone();
-
-            while ($currentTime->addMinutes($durationMinutes)->lte($endTime)) {
-                $slotStart = $currentTime->clone()->subMinutes($durationMinutes);
-                $slotEnd = $currentTime->clone();
-
-                // Check if slot is available (not overlapping with any booking)
-                $isAvailable = true;
-                foreach ($bookings as $booking) {
-                    $bookingStart = Carbon::createFromFormat('H:i', $booking->start_time->format('H:i'));
-                    $bookingEnd = Carbon::createFromFormat('H:i', $booking->end_time->format('H:i'));
-
-                    if ($slotStart->lt($bookingEnd) && $slotEnd->gt($bookingStart)) {
-                        $isAvailable = false;
-                        break;
-                    }
+            $isAvailable = true;
+            
+            // Check if this slot overlaps with any booking
+            foreach ($bookings as $booking) {
+                $bookingStart = $booking->start_time;
+                $bookingEnd = $booking->end_time;
+                
+                // Create datetime objects for comparison
+                $slotStart = Carbon::createFromFormat('H:i:s', $price->start_time)->setDateFrom($date);
+                $slotEnd = Carbon::createFromFormat('H:i:s', $price->end_time)->setDateFrom($date);
+                
+                // Check if times overlap
+                if ($slotStart < $bookingEnd && $slotEnd > $bookingStart) {
+                    $isAvailable = false;
+                    break;
                 }
-
-                if ($isAvailable) {
-                    $availableSlots[] = [
-                        'start_time' => $slotStart->format('H:i'),
-                        'end_time' => $slotEnd->format('H:i'),
-                        'time_period' => $price->time_period,
-                        'price_per_hour' => $price->price_per_hour,
-                        'status' => 'tersedia',
-                        'available' => true,
-                    ];
-                }
-
-                $currentTime = $slotEnd->clone();
             }
+
+            $availableSlots[] = [
+                'start_time' => Carbon::createFromFormat('H:i:s', $price->start_time)->format('H:i'),
+                'end_time' => Carbon::createFromFormat('H:i:s', $price->end_time)->format('H:i'),
+                'time_period' => $price->time_period,
+                'price_per_hour' => $price->price_per_hour,
+                'status' => $isAvailable ? 'tersedia' : 'terbooking',
+                'available' => $isAvailable,
+            ];
         }
 
         return response()->json([
             'success' => true,
             'field_id' => $fieldId,
             'date' => $date,
-            'duration_minutes' => $durationMinutes,
             'slots' => $availableSlots
         ]);
     }
 
     /**
-     * Get schedule summary for a date
+     * Get schedule summary for a date (hourly breakdown)
      */
     public function getDaySchedule(Request $request)
     {
@@ -106,12 +97,20 @@ class ScheduleController extends Controller
         $fieldId = $request->field_id;
         $date = $request->date;
 
-        // Get all prices
-        $prices = Price::where('is_active', true)
+        // Get all hourly prices for this field
+        $prices = Price::where('field_id', $fieldId)
+            ->where('is_active', true)
             ->orderBy('start_time')
             ->get();
 
-        // Get booked slots
+        if ($prices->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No pricing information available'
+            ], 404);
+        }
+
+        // Get booked slots for this date
         $bookings = Booking::where('field_id', $fieldId)
             ->where('status', '!=', 'cancelled')
             ->whereDate('start_time', $date)
@@ -119,26 +118,29 @@ class ScheduleController extends Controller
 
         $schedule = [];
 
+        // Check each hourly slot
         foreach ($prices as $price) {
-            $bookedCount = 0;
+            $isBooked = false;
+            
+            // Check if this slot is booked
             foreach ($bookings as $booking) {
-                $bookingStart = $booking->start_time->format('H:i');
-                $bookingEnd = $booking->end_time->format('H:i');
-
-                // Check if booking overlaps with this time period
-                if ($bookingStart < $price->end_time && $bookingEnd > $price->start_time) {
-                    $bookedCount++;
+                $slotStart = Carbon::createFromFormat('H:i:s', $price->start_time)->setDateFrom($date);
+                $slotEnd = Carbon::createFromFormat('H:i:s', $price->end_time)->setDateFrom($date);
+                
+                // Check if times overlap
+                if ($slotStart < $booking->end_time && $slotEnd > $booking->start_time) {
+                    $isBooked = true;
+                    break;
                 }
             }
 
             $schedule[] = [
                 'time_period' => $price->time_period,
-                'start_time' => $price->start_time,
-                'end_time' => $price->end_time,
+                'start_time' => Carbon::createFromFormat('H:i:s', $price->start_time)->format('H:i'),
+                'end_time' => Carbon::createFromFormat('H:i:s', $price->end_time)->format('H:i'),
                 'price_per_hour' => $price->price_per_hour,
-                'available_count' => max(0, 8 - $bookedCount), // Assuming 8 slots per period
-                'booked_count' => $bookedCount,
-                'status' => $bookedCount > 0 ? 'partially_booked' : 'available'
+                'is_booked' => $isBooked,
+                'status' => $isBooked ? 'terbooking' : 'tersedia'
             ];
         }
 
