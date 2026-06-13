@@ -5,8 +5,6 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 
 class RoleSeeder extends Seeder
 {
@@ -28,23 +26,5 @@ class RoleSeeder extends Seeder
 
         $roleUser = Role::create(['name' => 'user']);
         $roleUser->givePermissionTo('view fields');
-
-        // Create admin user
-        $admin = User::create([
-            'name' => 'Admin Futsal',
-            'email' => 'admin@futsal.com',
-            'password' => Hash::make('password123'),
-            'email_verified_at' => now(),
-        ]);
-        $admin->assignRole($roleAdmin);
-
-        // Create regular user
-        $user = User::create([
-            'name' => 'Regular User',
-            'email' => 'user@futsal.com',
-            'password' => Hash::make('password123'),
-            'email_verified_at' => now(),
-        ]);
-        $user->assignRole($roleUser);
     }
 }

@@ -18,6 +18,9 @@ const form = useForm({
     start_time: '',
     end_time: '',
     duration_minutes: 60,
+    phone_number: '',
+    customer_name: '',
+    customer_email: '',
 });
 
 const selectedField = computed(() => {
@@ -54,21 +57,44 @@ const formatCurrency = (value) => {
 
 const loadFields = async () => {
     try {
-        const response = await fetch('/api/fields');
+        const response = await fetch('/api/fields', {
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
         const data = await response.json();
         fields.value = data.data || data;
     } catch (err) {
         error.value = 'Gagal memuat daftar lapangan: ' + err.message;
+        console.error('Error loading fields:', err);
     }
 };
 
 const loadPrices = async () => {
     try {
-        const response = await fetch('/api/prices');
+        const response = await fetch('/api/prices', {
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
         const data = await response.json();
         prices.value = data.data || data;
     } catch (err) {
-        console.log('Gagal memuat harga');
+        console.log('Gagal memuat harga:', err.message);
     }
 };
 
@@ -85,7 +111,19 @@ const loadAvailableSlots = async () => {
             duration_minutes: form.duration_minutes,
         });
         
-        const response = await fetch(`/api/schedule/available-slots?${params}`);
+        const url = `/api/schedule/available-slots?${params}`;
+        const response = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
         const data = await response.json();
         
         if (data.success) {
@@ -94,6 +132,7 @@ const loadAvailableSlots = async () => {
         }
     } catch (err) {
         error.value = 'Gagal memuat slot waktu yang tersedia: ' + err.message;
+        console.error('Error loading available slots:', err);
     } finally {
         loading.value = false;
     }
@@ -110,33 +149,107 @@ const submitBooking = async () => {
     error.value = '';
     success.value = '';
 
+    // Validate phone number is provided
+    if (!form.phone_number.trim()) {
+        error.value = 'Nomor telepon harus diisi untuk pembayaran';
+        loading.value = false;
+        return;
+    }
+
     try {
-        const response = await fetch('/api/bookings', {
+        // Step 1: Create booking
+        const bookingResponse = await fetch('/api/bookings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
             },
             body: JSON.stringify({
                 field_id: form.field_id,
                 start_time: `${form.date} ${form.start_time}`,
                 end_time: `${form.date} ${form.end_time}`,
+                phone_number: form.phone_number,
             })
         });
 
-        const data = await response.json();
-        
-        if (response.ok) {
-            success.value = 'Booking berhasil dibuat! Silahkan lanjut ke pembayaran.';
-            setTimeout(() => {
-                window.location.href = '/bookings';
-            }, 2000);
+        const bookingData = await bookingResponse.json();
+
+        if (!bookingResponse.ok) {
+            throw new Error(bookingData.message || bookingData.error || `API error: ${bookingResponse.status}`);
+        }
+
+        const bookingId = bookingData.data?.id || bookingData.id;
+        success.value = 'Booking berhasil dibuat! Memproses pembayaran...';
+
+        // Step 2: Create Midtrans payment token
+        const paymentResponse = await fetch('/api/payments/create-midtrans-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                amount: bookingTotal.value,
+                customer_phone: form.phone_number,
+                customer_name: form.customer_name || selectedField.value?.name || 'Customer',
+                customer_email: form.customer_email || 'customer@futsal35.com',
+            })
+        });
+
+        const paymentData = await paymentResponse.json();
+
+        if (!paymentResponse.ok) {
+            throw new Error(paymentData.message || 'Gagal membuat token pembayaran');
+        }
+
+        // Step 3: Load and display Midtrans Snap
+        const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY;
+        if (!clientKey) {
+            throw new Error('Midtrans client key tidak dikonfigurasi');
+        }
+
+        // Load Midtrans Snap script if not already loaded
+        if (!window.snap) {
+            const script = document.createElement('script');
+            script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
+            script.setAttribute('data-client-key', clientKey);
+            document.head.appendChild(script);
+
+            // Wait for script to load
+            await new Promise((resolve) => {
+                script.onload = resolve;
+                script.onerror = () => {
+                    throw new Error('Gagal memuat Midtrans Snap');
+                };
+            });
+        }
+
+        // Open Midtrans payment page
+        if (window.snap && paymentData.token) {
+            window.snap.pay(paymentData.token, {
+                onSuccess: function () {
+                    success.value = 'Pembayaran berhasil! Mengarahkan ke dashboard...';
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 2000);
+                },
+                onPending: function () {
+                    success.value = 'Pembayaran sedang diproses...';
+                },
+                onError: function () {
+                    error.value = 'Pembayaran gagal. Silakan coba lagi.';
+                    loading.value = false;
+                },
+            });
         } else {
-            error.value = data.error || data.message || 'Gagal membuat booking';
+            throw new Error('Snap token tidak tersedia');
         }
     } catch (err) {
-        error.value = 'Gagal membuat booking: ' + err.message;
-    } finally {
+        error.value = 'Error: ' + err.message;
+        console.error('Error submitting booking:', err);
         loading.value = false;
     }
 };
@@ -343,6 +456,41 @@ onMounted(() => {
                                             <p class="text-lg font-semibold">Total Harga</p>
                                             <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(bookingTotal) }}</p>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <!-- Customer Contact Info -->
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Telepon *</label>
+                                        <input
+                                            v-model="form.phone_number"
+                                            type="tel"
+                                            placeholder="08xx xxxx xxxx"
+                                            required
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                        <p class="text-xs text-gray-500 mt-1">Digunakan untuk konfirmasi pembayaran</p>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Nama</label>
+                                        <input
+                                            v-model="form.customer_name"
+                                            type="text"
+                                            placeholder="Nama Anda"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                        <input
+                                            v-model="form.customer_email"
+                                            type="email"
+                                            placeholder="email@example.com"
+                                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
                                     </div>
                                 </div>
 

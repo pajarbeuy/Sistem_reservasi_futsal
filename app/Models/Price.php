@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
+    'field_id',
     'time_period',
     'start_time',
     'end_time',
@@ -22,4 +23,9 @@ class Price extends Model
         'price_per_hour' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    public function field()
+    {
+        return $this->belongsTo(Field::class);
+    }
 }

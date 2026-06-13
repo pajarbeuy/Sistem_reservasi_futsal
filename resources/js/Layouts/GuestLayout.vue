@@ -8,7 +8,7 @@ import { Link } from '@inertiajs/vue3';
         class="flex min-h-screen flex-col items-center bg-gradient-to-r from-slate-900 to-slate-800  pt-6 sm:justify-center sm:pt-0"
     >
         <div>
-            <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-56 w-auto">
+            <img src="/images/logo.png" alt="FUTSAL 35 Logo" class="h-56 w-auto mix-blend-lighten">
         </div>
 
         <div

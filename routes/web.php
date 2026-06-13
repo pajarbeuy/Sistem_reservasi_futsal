@@ -17,7 +17,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('UserDashboard', [
             'bookings' => Booking::where('user_id', auth()->id())->with('field')->orderBy('created_at', 'desc')->get(),
-            'payments' => \App\Models\Payment::where('user_id', auth()->id())->orderBy('created_at', 'desc')->get()
+            'payments' => \App\Models\Payment::whereHas('booking', function ($query) {
+                $query->where('user_id', auth()->id());
+            })->orderBy('created_at', 'desc')->get()
         ]);
     })->name('dashboard');
 
@@ -97,6 +99,29 @@ Route::get('/jadwal', function () {
 Route::get('/harga', function () {
     return Inertia::render('Harga');
 });
+
+Route::get('/lapangan', function () {
+    return Inertia::render('Lapangan');
+});
+
+// Booking Detail Page - untuk melakukan booking dengan Midtrans payment
+Route::get('/lapangan/{id}/booking', function ($id) {
+    return Inertia::render('LapanganDetail', ['fieldId' => $id]);
+})->middleware('auth')->name('lapangan.booking');
+
+// Midtrans Payment Callbacks
+Route::post('/payments/midtrans-callback', [\App\Http\Controllers\MidtransPaymentController::class, 'handleCallback'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class])
+    ->name('payment.callback');
+
+Route::get('/payment/finish', [\App\Http\Controllers\MidtransPaymentController::class, 'paymentFinish'])
+    ->name('payment.finish');
+
+Route::get('/payment/error', [\App\Http\Controllers\MidtransPaymentController::class, 'paymentError'])
+    ->name('payment.error');
+
+Route::get('/payment/pending', [\App\Http\Controllers\MidtransPaymentController::class, 'paymentPending'])
+    ->name('payment.pending');
 
 Route::get('/lapangan', function () {
     return Inertia::render('Lapangan');

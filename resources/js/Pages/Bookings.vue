@@ -76,8 +76,8 @@ onMounted(loadBookings);
         <template #header>
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h2 class="text-xl font-semibold leading-tight text-gray-800">Pembayaran Booking</h2>
-                    <p class="mt-1 text-sm text-gray-500">Lihat booking Anda dan lakukan pembayaran langsung dari dashboard.</p>
+                    <h2 class="text-xl font-semibold leading-tight text-gray-800">Riwayat Booking & Transaksi</h2>
+                    <p class="mt-1 text-sm text-gray-500">Lihat semua booking dan status pembayaran Anda.</p>
                 </div>
             </div>
         </template>
@@ -90,71 +90,123 @@ onMounted(loadBookings);
                 </div>
 
                 <div v-if="loading" class="rounded-2xl border border-gray-700 bg-gray-800 p-6 text-center text-gray-300 shadow-sm">
-                    Memuat booking...
+                    Memuat riwayat booking...
                 </div>
 
                 <div v-else-if="!bookings.length" class="rounded-2xl border border-gray-700 bg-gray-800 p-6 text-center text-gray-300 shadow-sm">
-                    Belum ada booking. Silakan lakukan booking terlebih dahulu.
+                    Belum ada booking. <a href="/jadwal" class="text-blue-400 hover:text-blue-300">Mulai booking sekarang</a>
                 </div>
 
-                <div v-else class="grid gap-6 lg:grid-cols-2">
-                    <div v-for="booking in bookings" :key="booking.id" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-slate-900">{{ booking.field.name }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ booking.field.type }}</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                    {{ booking.status }}</span>
-                            </div>
+                <div v-else class="space-y-6">
+                    <!-- Pending Payment Section -->
+                    <div v-if="bookings.some(b => b.status === 'pending')" class="space-y-4">
+                        <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4 rounded">
+                            <h3 class="text-lg font-semibold text-yellow-900">Menunggu Pembayaran</h3>
+                            <p class="text-sm text-yellow-700 mt-1">Selesaikan pembayaran untuk mengkonfirmasi booking Anda</p>
                         </div>
 
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                                <div class="font-medium text-slate-900">Tanggal</div>
-                                <div>{{ new Date(booking.start_time).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
-                            </div>
-                            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                                <div class="font-medium text-slate-900">Waktu</div>
-                                <div>{{ new Date(booking.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }} - {{ new Date(booking.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}</div>
-                            </div>
-                            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                                <div class="font-medium text-slate-900">Total Harga</div>
-                                <div>{{ formatCurrency(booking.total_price) }}</div>
-                            </div>
-                            <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                                <div class="font-medium text-slate-900">Metode</div>
-                                <div>{{ booking.payment?.payment_method || 'Belum dibayar' }}</div>
-                            </div>
-                        </div>
-
-                        <div class="mt-5 space-y-4">
-                            <div v-if="booking.status === 'pending'" class="space-y-3">
-                                <label class="block text-sm font-medium text-slate-700">Pilih metode pembayaran</label>
-                                <select
-                                    v-model="selectedMethods[booking.id]"
-                                    class="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                                >
-                                    <option v-for="method in methods" :key="method" :value="method">{{ method }}</option>
-                                </select>
-                                <button
-                                    @click="payBooking(booking)"
-                                    :disabled="paying[booking.id]"
-                                    class="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                                >
-                                    <span v-if="paying[booking.id]">Memproses...</span>
-                                    <span v-else>Bayar Sekarang</span>
-                                </button>
-                            </div>
-                            <div v-else class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-medium text-slate-900">Status pembayaran</span>
-                                    <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold uppercase text-emerald-700">{{ booking.payment?.payment_status || 'pending' }}</span>
+                        <div class="grid gap-6 lg:grid-cols-2">
+                            <div v-for="booking in bookings.filter(b => b.status === 'pending')" :key="booking.id" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-slate-900">{{ booking.field.name }}</h3>
+                                        <p class="mt-1 text-sm text-slate-500">{{ booking.field.type }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-yellow-700">
+                                            {{ booking.status }}</span>
+                                    </div>
                                 </div>
-                                <div class="mt-3 text-sm text-slate-600">
-                                    <div>Metode: {{ booking.payment?.payment_method || '-' }}</div>
-                                    <div>ID Transaksi: {{ booking.payment?.transaction_id || '-' }}</div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Tanggal</div>
+                                        <div>{{ new Date(booking.start_time).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Waktu</div>
+                                        <div>{{ new Date(booking.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }} - {{ new Date(booking.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Total Harga</div>
+                                        <div class="text-lg font-bold text-orange-600">{{ formatCurrency(booking.total_price) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Catatan</div>
+                                        <div class="text-xs">{{ booking.notes || '-' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 space-y-3">
+                                    <label class="block text-sm font-medium text-slate-700">Pilih metode pembayaran</label>
+                                    <select
+                                        v-model="selectedMethods[booking.id]"
+                                        class="w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                                    >
+                                        <option v-for="method in methods" :key="method" :value="method">{{ method }}</option>
+                                    </select>
+                                    <button
+                                        @click="payBooking(booking)"
+                                        :disabled="paying[booking.id]"
+                                        class="w-full inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                                    >
+                                        <span v-if="paying[booking.id]">Memproses...</span>
+                                        <span v-else>Bayar Sekarang</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completed Bookings Section -->
+                    <div v-if="bookings.some(b => b.status !== 'pending')" class="space-y-4">
+                        <div class="border-l-4 border-emerald-500 bg-emerald-50 p-4 rounded">
+                            <h3 class="text-lg font-semibold text-emerald-900">Riwayat Booking Terkonfirmasi</h3>
+                            <p class="text-sm text-emerald-700 mt-1">Booking yang sudah dibayar dan dikonfirmasi</p>
+                        </div>
+
+                        <div class="grid gap-6 lg:grid-cols-2">
+                            <div v-for="booking in bookings.filter(b => b.status !== 'pending')" :key="booking.id" class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-slate-900">{{ booking.field.name }}</h3>
+                                        <p class="mt-1 text-sm text-slate-500">{{ booking.field.type }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                            {{ booking.status }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Tanggal</div>
+                                        <div>{{ new Date(booking.start_time).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Waktu</div>
+                                        <div>{{ new Date(booking.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }} - {{ new Date(booking.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Total Harga</div>
+                                        <div>{{ formatCurrency(booking.total_price) }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div class="font-medium text-slate-900">Metode Bayar</div>
+                                        <div>{{ booking.payment?.payment_method || '-' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-medium text-slate-900">Status Pembayaran</span>
+                                        <span class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold uppercase text-emerald-700">{{ booking.payment?.payment_status || 'completed' }}</span>
+                                    </div>
+                                    <div class="mt-3 space-y-1 text-xs text-slate-600">
+                                        <div v-if="booking.payment?.transaction_id"><strong>ID Transaksi:</strong> {{ booking.payment.transaction_id }}</div>
+                                        <div v-if="booking.phone_number"><strong>No. Telepon:</strong> {{ booking.phone_number }}</div>
+                                        <div v-if="booking.notes"><strong>Catatan:</strong> {{ booking.notes }}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

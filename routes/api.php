@@ -5,7 +5,10 @@ use App\Http\Controllers\Api\FieldController;
 use App\Http\Controllers\Api\PriceController;
 use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\VerificationController;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -55,17 +58,23 @@ Route::group([
     });
 });
 
-// Schedule - Public GET available slots
+// Schedule - Public GET available slots (no auth required)
 Route::group([
-    'prefix' => 'schedule'
+    'prefix' => 'schedule',
+    'middleware' => 'api'
 ], function () {
     Route::get('/available-slots', [ScheduleController::class, 'getAvailableSlots']);
     Route::get('/day-schedule', [ScheduleController::class, 'getDaySchedule']);
 });
 
-// Bookings
+// Bookings (web session or JWT auth required)
 Route::group([
-    'middleware' => 'auth:api',
+    'middleware' => [
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        'auth:web,api',
+    ],
     'prefix' => 'bookings'
 ], function () {
     Route::get('/', [\App\Http\Controllers\Api\BookingController::class, 'index']);
@@ -74,14 +83,24 @@ Route::group([
     Route::post('/{id}/cancel', [\App\Http\Controllers\Api\BookingController::class, 'cancel']);
 });
 
-// Payments
+// Payments (web session or JWT auth required)
 Route::group([
-    'middleware' => 'auth:api',
+    'middleware' => [
+        EncryptCookies::class,
+        AddQueuedCookiesToResponse::class,
+        StartSession::class,
+        'auth:web,api',
+    ],
     'prefix' => 'payments'
 ], function () {
     Route::post('/', [\App\Http\Controllers\Api\PaymentController::class, 'store']);
+    Route::post('/create-midtrans-token', [\App\Http\Controllers\MidtransPaymentController::class, 'createMidtransToken']);
     Route::get('/{id}', [\App\Http\Controllers\Api\PaymentController::class, 'show']);
 });
+
+// Midtrans Callback
+Route::post('/payments/callback', [\App\Http\Controllers\MidtransPaymentController::class, 'handleCallback'])
+    ->name('api.payments.callback');
 
 // Email Verification
 Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])

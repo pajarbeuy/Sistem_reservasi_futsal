@@ -12,20 +12,16 @@ class FieldSeeder extends Seeder
         $fields = [
             [
                 'name' => 'Lapangan A',
-                'type' => 'Vinyl',
-                'price_per_hour' => 150000,
+                'type' => 'Synthetic',
+                'description' => 'Lapangan futsal besar dengan standar internasional. Ideal untuk turnamen dan acara berskala besar.',
+                'price_per_hour' => 200000,
                 'is_available' => true,
             ],
             [
                 'name' => 'Lapangan B',
                 'type' => 'Synthetic',
-                'price_per_hour' => 180000,
-                'is_available' => true,
-            ],
-            [
-                'name' => 'Lapangan C',
-                'type' => 'Synthetic',
-                'price_per_hour' => 200000,
+                'description' => 'Lapangan futsal kecil dengan standar nasional. Cocok untuk latihan, training, dan pertandingan reguler.',
+                'price_per_hour' => 120000,
                 'is_available' => true,
             ],
         ];

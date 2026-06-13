@@ -9,35 +9,39 @@ class PriceSeeder extends Seeder
 {
     public function run(): void
     {
-        $prices = [
-            [
-                'time_period' => 'Pagi',
-                'start_time' => '06:00:00',
-                'end_time' => '12:00:00',
-                'price_per_hour' => 150000,
-                'description' => 'Harga khusus untuk waktu pagi',
-                'is_active' => true,
-            ],
-            [
-                'time_period' => 'Siang',
-                'start_time' => '12:00:00',
-                'end_time' => '17:00:00',
-                'price_per_hour' => 200000,
-                'description' => 'Harga standar untuk waktu siang',
-                'is_active' => true,
-            ],
-            [
-                'time_period' => 'Malam',
-                'start_time' => '17:00:00',
-                'end_time' => '23:59:59',
-                'price_per_hour' => 180000,
-                'description' => 'Harga khusus untuk waktu malam',
-                'is_active' => true,
-            ],
+        // Generate hourly time slots from 06:00 to 23:00
+        $timePeriods = [];
+        for ($hour = 6; $hour < 23; $hour++) {
+            $startHour = str_pad($hour, 2, '0', STR_PAD_LEFT);
+            $endHour = str_pad($hour + 1, 2, '0', STR_PAD_LEFT);
+            
+            $timePeriods[] = [
+                'time_period' => "{$startHour}:00 - {$endHour}:00",
+                'start_time' => "{$startHour}:00:00",
+                'end_time' => "{$endHour}:00:00",
+            ];
+        }
+
+        $fields = [
+            ['id' => 1, 'price' => 200000], // Lapangan A - 200rb per jam
+            ['id' => 2, 'price' => 120000], // Lapangan B - 120rb per jam
         ];
 
-        foreach ($prices as $price) {
-            Price::create($price);
+        // Delete existing prices
+        Price::query()->delete();
+
+        foreach ($fields as $field) {
+            foreach ($timePeriods as $period) {
+                Price::create([
+                    'field_id' => $field['id'],
+                    'time_period' => $period['time_period'],
+                    'start_time' => $period['start_time'],
+                    'end_time' => $period['end_time'],
+                    'price_per_hour' => $field['price'],
+                    'description' => 'Slot ' . $period['time_period'],
+                    'is_active' => true,
+                ]);
+            }
         }
     }
 }

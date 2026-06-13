@@ -18,6 +18,13 @@ const formatCurrency = (value) => {
 const loadPrices = async () => {
     try {
         const response = await fetch('/api/prices');
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        }
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Invalid response type: expected JSON');
+        }
         const data = await response.json();
         prices.value = data.data || data;
     } catch (err) {
