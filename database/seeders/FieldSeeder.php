@@ -12,14 +12,14 @@ class FieldSeeder extends Seeder
         $fields = [
             [
                 'name' => 'Lapangan A',
-                'type' => 'Synthetic',
+                'type' => 'Interlock',
                 'description' => 'Lapangan futsal besar dengan standar internasional. Ideal untuk turnamen dan acara berskala besar.',
                 'price_per_hour' => 200000,
                 'is_available' => true,
             ],
             [
                 'name' => 'Lapangan B',
-                'type' => 'Synthetic',
+                'type' => 'Interlock',
                 'description' => 'Lapangan futsal kecil dengan standar nasional. Cocok untuk latihan, training, dan pertandingan reguler.',
                 'price_per_hour' => 120000,
                 'is_available' => true,
