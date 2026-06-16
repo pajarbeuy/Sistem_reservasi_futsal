@@ -66,9 +66,9 @@ const groupedSlots = computed(() => {
         const endMins = startMins + duration;
         const endTime = minutesToTime(endMins);
 
-        // Check if all consecutive 30-min slots within this range are available
+        // Check if all required 60-min slots within this range are available
         let allAvailable = true;
-        for (let m = startMins; m < endMins; m += 30) {
+        for (let m = startMins; m < endMins; m += 60) {
             if (!availableStartTimes.has(m)) {
                 allAvailable = false;
                 break;

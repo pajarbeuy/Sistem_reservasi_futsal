@@ -17,6 +17,13 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
+const getFieldImage = (field) => {
+    if (field.name?.toLowerCase().includes('lapangan a') || field.price_per_hour >= 200000) {
+        return '/images/Lapang A.png';
+    }
+    return '/images/Lapang B.png';
+};
+
 const loadFields = async () => {
     try {
         const data = await apiGet('/api/fields');
@@ -68,10 +75,12 @@ onMounted(() => {
                             role="button"
                             tabindex="0"
                         >
-                            <div class="h-48 bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center overflow-hidden">
-                                <svg class="w-24 h-24 text-white/50" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 4a1 1 0 011-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5H3a1 1 0 01-1-1zm8-1h6a1 1 0 011 1v12a1 1 0 11-2 0V5h-5a1 1 0 010-2z"/>
-                                </svg>
+                            <div class="h-48 overflow-hidden">
+                                <img
+                                    :src="getFieldImage(field)"
+                                    :alt="field.name"
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                >
                             </div>
                             <div class="p-6">
                                 <h3 class="text-2xl font-bold text-white mb-2">{{ field.name }}</h3>
