@@ -2,13 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'type', 'description', 'price_per_hour', 'is_available'])]
 class Field extends Model
 {
+    protected $fillable = [
+        'name',
+        'type',
+        'description',
+        'price_per_hour',
+        'is_available',
+    ];
     /** @use HasFactory<\Database\Factories\FieldFactory> */
     use HasFactory;
 

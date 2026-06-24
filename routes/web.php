@@ -123,10 +123,6 @@ Route::get('/payment/error', [\App\Http\Controllers\MidtransPaymentController::c
 Route::get('/payment/pending', [\App\Http\Controllers\MidtransPaymentController::class, 'paymentPending'])
     ->name('payment.pending');
 
-Route::get('/lapangan', function () {
-    return Inertia::render('Lapangan');
-});
-
 Route::get('/tentang', function () {
     return Inertia::render('Tentang');
 });

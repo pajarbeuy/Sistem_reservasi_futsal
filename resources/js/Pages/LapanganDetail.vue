@@ -3,8 +3,9 @@ import { ref, onMounted, computed } from 'vue';
 import FutsalLayout from '@/Layouts/FutsalLayout.vue';
 import FooterFutsal from '@/Components/FooterFutsal.vue';
 import JadwalGrid from '@/Components/JadwalGrid.vue';
-import { apiGet, apiPost } from '@/Utils/api';
+import { apiGet, apiPost } from '@/utils/api.js';
 
+// Menerima ID lapangan dari prop inertia routing
 const props = defineProps({
     fieldId: {
         type: [String, Number],
@@ -12,16 +13,34 @@ const props = defineProps({
     },
 });
 
+// State untuk menyimpan detail lapangan dan jadwal yang tersedia
 const field = ref(null);
 const schedules = ref([]);
-const selectedDate = ref(new Date().toISOString().split('T')[0]);
-const selectedSlot = ref(null);
-const phoneNumber = ref('');
-const notes = ref('');
-const loading = ref(false);
-const error = ref('');
-const isSubmitting = ref(false);
 
+/**
+ * Mendapatkan string tanggal hari ini dengan format YYYY-MM-DD
+ * Digunakan sebagai nilai minimum kalender agar user tidak booking di hari berlalu
+ */
+const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// State reaktif untuk form pemesanan
+const selectedDate = ref(getLocalDateString()); // Tanggal yang dipilih (default hari ini)
+const selectedSlot = ref(null);                 // Slot waktu dari JadwalGrid
+const phoneNumber = ref('');                    // Nomor telepon user
+const notes = ref('');                          // Catatan opsional dari user
+const loading = ref(false);                     // Status loading saat hit API jadwal
+const error = ref('');                          // Pesan error jika ada kegagalan
+const isSubmitting = ref(false);                // Status tombol submit (mencegah double-click)
+
+/**
+ * Memformat nominal angka ke dalam bentuk mata uang Rupiah
+ */
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -30,6 +49,9 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
+/**
+ * Mengambil detail informasi lapangan dari API berdasarkan fieldId
+ */
 const loadField = async () => {
     try {
         const data = await apiGet(`/api/fields/${props.fieldId}`);
@@ -40,12 +62,16 @@ const loadField = async () => {
     }
 };
 
+/**
+ * Mengambil ketersediaan slot jadwal per 30 menit dari API backend.
+ * Data slot dasar ini nanti akan digabung-gabungkan di komponen JadwalGrid.
+ */
 const loadSchedule = async () => {
     if (!props.fieldId || !selectedDate.value) return;
 
     loading.value = true;
     try {
-        // Use available-slots with duration 30 to get atomic half-hour slots for flexible duration building
+        // Request slot jadwal dengan interval 30 menit (atomic half-hour slots)
         const url = `/api/schedule/available-slots?field_id=${props.fieldId}&date=${selectedDate.value}&duration_minutes=30`;
         console.log('Loading schedule from:', url);
         
@@ -53,11 +79,11 @@ const loadSchedule = async () => {
         console.log('Schedule API response:', data);
         
         if (data.success && data.slots) {
-            // Map API response to schedule items — per-hour base slots
+            // Memetakan struktur response dari API agar sesuai dengan kebutuhan grid
             schedules.value = data.slots.map(item => ({
                 time_period: item.time_period,
-                start_time: item.start_time.substring(0, 5),
-                end_time: item.end_time.substring(0, 5),
+                start_time: item.start_time.substring(0, 5), // Ambil "HH:MM" saja
+                end_time: item.end_time.substring(0, 5),     // Ambil "HH:MM" saja
                 price_per_hour: item.price_per_hour,
                 status: item.status,
             }));
@@ -75,6 +101,9 @@ const loadSchedule = async () => {
     }
 };
 
+/**
+ * Memformat status item jadwal agar tampil lebih rapi dan bisa diproses oleh JadwalGrid
+ */
 const scheduleItems = computed(() => {
     return schedules.value.map(item => ({
         time_period: item.time_period,
@@ -85,31 +114,44 @@ const scheduleItems = computed(() => {
     }));
 });
 
-// selectedSlot now contains the full slot object from JadwalGrid (includes duration_minutes, total_price, etc.)
+// Menyimpan data slot (waktu dan total harga) yang dipilih oleh user dari komponen JadwalGrid
 const selectedScheduleData = computed(() => {
     return selectedSlot.value;
 });
 
+// Menghitung total harga berdasarkan slot yang dipilih
 const totalPrice = computed(() => {
     if (!selectedScheduleData.value) return 0;
     return selectedScheduleData.value.total_price || selectedScheduleData.value.price_per_hour || 0;
 });
 
+/**
+ * Event listener saat pengguna mengganti tanggal pada input date.
+ * Jika tanggal diganti, slot yang dipilih sebelumnya di-reset, lalu load ulang jadwalnya.
+ */
 const onDateChange = (newDate) => {
     selectedDate.value = newDate;
-    selectedSlot.value = null;
+    selectedSlot.value = null; // Reset slot saat tanggal diganti
     loadSchedule();
 };
 
+/**
+ * Event listener yang menangkap emit (pilihan) dari komponen JadwalGrid
+ */
 const onSlotChoose = (slotData) => {
     selectedSlot.value = slotData;
 };
 
+/**
+ * Logika utama pemesanan dan pembayaran.
+ * Mengirim data booking ke backend, membuat token Midtrans, lalu memunculkan Snap Pop-up.
+ */
 const handlePayment = async () => {
     if (isSubmitting.value) return;
 
     error.value = '';
 
+    // Validasi input
     if (!phoneNumber.value) {
         error.value = 'Nomor telepon harus diisi';
         return;
@@ -121,8 +163,6 @@ const handlePayment = async () => {
     }
 
     if (!selectedScheduleData.value) {
-        console.error('Selected slot:', selectedSlot.value);
-        console.error('Available schedules:', schedules.value);
         error.value = 'Data jadwal tidak ditemukan. Pastikan jadwal sudah dimuat.';
         return;
     }
@@ -134,21 +174,11 @@ const handlePayment = async () => {
         const startTimeStr = slot.start_time;
         const endTimeStr = slot.end_time;
 
-        console.log('Booking details:', {
-            fieldId: props.fieldId,
-            selectedDate: selectedDate.value,
-            startTime: startTimeStr,
-            endTime: endTimeStr,
-            phoneNumber: phoneNumber.value,
-            totalPrice: totalPrice.value,
-            durationMinutes: slot.duration_minutes,
-        });
-
-        // 1. Create booking
+        // 1. Buat data booking di tabel bookings melalui API
         const bookingData = await apiPost('/api/bookings', {
             field_id: props.fieldId,
-            start_time: new Date(`${selectedDate.value}T${startTimeStr}:00`).toISOString(),
-            end_time: new Date(`${selectedDate.value}T${endTimeStr}:00`).toISOString(),
+            start_time: `${selectedDate.value} ${startTimeStr}:00`,
+            end_time: `${selectedDate.value} ${endTimeStr}:00`,
             phone_number: phoneNumber.value,
             notes: notes.value,
             total_price: totalPrice.value,
@@ -161,7 +191,7 @@ const handlePayment = async () => {
             return;
         }
 
-        // 2. Create payment with Midtrans
+        // 2. Buat token pembayaran (Snap Token) dari Midtrans melalui API
         const paymentData = await apiPost('/api/payments/create-midtrans-token', {
             booking_id: bookingData.data.id,
             amount: totalPrice.value,
@@ -177,12 +207,12 @@ const handlePayment = async () => {
             return;
         }
 
-        // 3. Show Midtrans payment modal
+        // 3. Tampilkan antarmuka pop-up pembayaran Midtrans (Snap)
         if (window.snap) {
             window.snap.pay(paymentData.token, {
                 onSuccess: function (result) {
                     alert('Pembayaran berhasil!');
-                    window.location.href = '/dashboard';
+                    window.location.href = '/dashboard'; // Redirect ke dashboard setelah sukses
                 },
                 onPending: function (result) {
                     alert('Pembayaran menunggu konfirmasi');
@@ -191,7 +221,7 @@ const handlePayment = async () => {
                     error.value = 'Pembayaran gagal: ' + result.status_message;
                 },
                 onClose: function () {
-                    console.log('Pembayaran ditutup');
+                    console.log('Pop-up pembayaran ditutup oleh user tanpa menyelesaikan pembayaran.');
                 }
             });
         } else {
@@ -206,14 +236,15 @@ const handlePayment = async () => {
 };
 
 const getMinDate = () => {
-    return new Date().toISOString().split('T')[0];
+    return getLocalDateString();
 };
 
+// Dijalankan pertama kali saat komponen ini di-mount / tampil
 onMounted(() => {
     loadField();
     loadSchedule();
 
-    // Load Midtrans Snap script with client key
+    // Memuat script Midtrans Snap JS secara dinamis dan menyisipkan Client Key
     const script = document.createElement('script');
     script.src = 'https://app.sandbox.midtrans.com/snap/snap.js';
     script.setAttribute('data-client-key', import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'YOUR_CLIENT_KEY_HERE');

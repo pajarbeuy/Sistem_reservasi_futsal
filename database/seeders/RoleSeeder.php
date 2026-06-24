@@ -17,14 +17,21 @@ class RoleSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Create permissions
-        Permission::create(['name' => 'manage fields']);
-        Permission::create(['name' => 'view fields']);
+        $permissions = [
+            'manage fields',
+            'view fields',
+            'manage prices',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate(['name' => $permission]);
+        }
 
         // Create roles and assign created permissions
-        $roleAdmin = Role::create(['name' => 'admin']);
+        $roleAdmin = Role::firstOrCreate(['name' => 'admin']);
         $roleAdmin->givePermissionTo(Permission::all());
 
-        $roleUser = Role::create(['name' => 'user']);
+        $roleUser = Role::firstOrCreate(['name' => 'user']);
         $roleUser->givePermissionTo('view fields');
     }
 }

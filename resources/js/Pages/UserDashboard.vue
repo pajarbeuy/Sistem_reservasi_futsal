@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps({
@@ -9,6 +9,62 @@ const props = defineProps({
 });
 
 const activeTab = ref('booking');
+
+const timeZone = 'Asia/Jakarta';
+
+const parseDate = (value) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatDateWib = (value) => {
+    const date = parseDate(value);
+
+    if (!date) return '-';
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        timeZone,
+    }).format(date);
+};
+
+const formatTimeWib = (value) => {
+    const date = parseDate(value);
+
+    if (!date) return '-';
+
+    return new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone,
+    }).format(date);
+};
+
+const formatBookingTime = (booking) => {
+    const start = formatTimeWib(booking.start_time);
+    const end = formatTimeWib(booking.end_time);
+
+    return start === '-' || end === '-' ? '-' : `${start} - ${end} WIB`;
+};
+
+const formatDuration = (booking) => {
+    const start = parseDate(booking.start_time);
+    const end = parseDate(booking.end_time);
+
+    if (!start || !end) return '-';
+
+    const minutes = Math.max(0, Math.round((end - start) / 60000));
+    const hours = Math.floor(minutes / 60);
+    const restMinutes = minutes % 60;
+
+    if (hours && restMinutes) return `${hours} jam ${restMinutes} menit`;
+    if (hours) return `${hours} jam`;
+
+    return `${restMinutes} menit`;
+};
 
 </script>
 
@@ -27,7 +83,7 @@ const activeTab = ref('booking');
 
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-lg font-bold text-gray-100">Dashboard</h3>
-                    <button @click="window.location.href = '/booking-form'" class="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Buat Reservasi</button>
+                    <Link href="/" class="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition">Buat Reservasi</Link>
                 </div>
 
                 <!-- Tabs -->
@@ -65,9 +121,9 @@ const activeTab = ref('booking');
                             <tbody>
                                 <tr v-for="booking in bookings" :key="booking.id" class="border-b border-gray-700 hover:bg-gray-700">
                                     <td class="p-3">{{ booking.field?.name || '-' }}</td>
-                                    <td class="p-3">{{ new Date(booking.booking_date).toLocaleDateString('id-ID') }}</td>
-                                    <td class="p-3">{{ booking.start_time }} - {{ booking.end_time }}</td>
-                                    <td class="p-3">{{ booking.duration_hours }} jam</td>
+                                    <td class="p-3">{{ formatDateWib(booking.start_time) }}</td>
+                                    <td class="p-3">{{ formatBookingTime(booking) }}</td>
+                                    <td class="p-3">{{ formatDuration(booking) }}</td>
                                     <td class="p-3">Rp {{ Number(booking.total_price).toLocaleString('id-ID') }}</td>
                                     <td class="p-3">
                                         <span 
@@ -106,7 +162,7 @@ const activeTab = ref('booking');
                             </thead>
                             <tbody>
                                 <tr v-for="payment in payments" :key="payment.id" class="border-b border-gray-700 hover:bg-gray-700">
-                                    <td class="p-3">{{ new Date(payment.created_at).toLocaleDateString('id-ID') }}</td>
+                                    <td class="p-3">{{ formatDateWib(payment.created_at) }}</td>
                                     <td class="p-3">Rp {{ Number(payment.amount).toLocaleString('id-ID') }}</td>
                                     <td class="p-3">{{ payment.payment_method || '-' }}</td>
                                     <td class="p-3">{{ payment.reference_id || '-' }}</td>
