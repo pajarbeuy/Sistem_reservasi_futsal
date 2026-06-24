@@ -312,6 +312,17 @@ class BookingController extends Controller
                 ], 400);
             }
 
+            // Validasi H-24 untuk pembatalan (jika user bukan admin)
+            if (!$user->hasRole('admin')) {
+                $start = \Carbon\Carbon::parse($booking->start_time);
+                if (now()->diffInHours($start, false) < 24) {
+                    return response()->json([
+                        'error' => true,
+                        'message' => 'Batas waktu pembatalan sudah lewat (Maksimal H-24 jam sebelum jadwal).'
+                    ], 400);
+                }
+            }
+
             // Eksekusi pembatalan
             $booking->update([
                 'status' => 'cancelled',
