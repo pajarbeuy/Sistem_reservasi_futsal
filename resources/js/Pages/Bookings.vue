@@ -9,7 +9,38 @@ const error = ref('');
 const message = ref('');
 const selectedMethods = ref({});
 const paying = ref({});
+const canceling = ref({});
 const methods = ['Transfer Bank', 'E-Wallet', 'Cash'];
+
+const canCancel = (booking) => {
+    if (booking.status === 'completed' || booking.status === 'cancelled') return false;
+    const start = new Date(booking.start_time);
+    const now = new Date();
+    const diffHours = (start - now) / (1000 * 60 * 60);
+    return diffHours >= 24;
+};
+
+const cancelBooking = async (booking) => {
+    if (!window.confirm('Apakah Anda yakin ingin membatalkan booking ini? (Maksimal H-24 Jam)')) return;
+    
+    canceling.value[booking.id] = true;
+    error.value = '';
+    message.value = '';
+
+    try {
+        const response = await axios.post(`/api/bookings/${booking.id}/cancel`);
+        const updatedBooking = response.data.data;
+        const index = bookings.value.findIndex(b => b.id === booking.id);
+        if (index !== -1) {
+            bookings.value[index] = { ...bookings.value[index], ...updatedBooking };
+        }
+        message.value = response.data.message || 'Booking berhasil dibatalkan.';
+    } catch (err) {
+        error.value = err.response?.data?.message || 'Gagal membatalkan booking.';
+    } finally {
+        canceling.value[booking.id] = false;
+    }
+};
 
 const formatCurrency = (value) => {
     if (value === null || value === undefined) {
@@ -153,6 +184,15 @@ onMounted(loadBookings);
                                         <span v-if="paying[booking.id]">Memproses...</span>
                                         <span v-else>Bayar Sekarang</span>
                                     </button>
+                                    <button
+                                        v-if="canCancel(booking)"
+                                        @click="cancelBooking(booking)"
+                                        :disabled="canceling[booking.id]"
+                                        class="mt-2 w-full inline-flex items-center justify-center rounded-2xl border border-rose-600 px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        <span v-if="canceling[booking.id]">Membatalkan...</span>
+                                        <span v-else>Batalkan Booking</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -206,6 +246,16 @@ onMounted(loadBookings);
                                         <div v-if="booking.payment?.transaction_id"><strong>ID Transaksi:</strong> {{ booking.payment.transaction_id }}</div>
                                         <div v-if="booking.phone_number"><strong>No. Telepon:</strong> {{ booking.phone_number }}</div>
                                         <div v-if="booking.notes"><strong>Catatan:</strong> {{ booking.notes }}</div>
+                                    </div>
+                                    <div class="mt-4" v-if="booking.status === 'confirmed' && canCancel(booking)">
+                                        <button
+                                            @click="cancelBooking(booking)"
+                                            :disabled="canceling[booking.id]"
+                                            class="w-full inline-flex items-center justify-center rounded-2xl border border-rose-600 px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <span v-if="canceling[booking.id]">Membatalkan...</span>
+                                            <span v-else>Batalkan Booking</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
