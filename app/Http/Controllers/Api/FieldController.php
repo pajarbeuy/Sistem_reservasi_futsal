@@ -27,14 +27,15 @@ class FieldController extends Controller
     public function store(Request $request)
     {
         // Permission check
-        if (!auth()->user()->can('manage fields')) {
+        if (!$request->user()?->hasRole('admin') && !$request->user()?->can('manage fields')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
-            'price_per_hour' => 'required|numeric',
+            'description' => 'nullable|string',
+            'price_per_hour' => 'required|numeric|min:0',
             'is_available' => 'boolean'
         ]);
 
@@ -68,14 +69,15 @@ class FieldController extends Controller
     public function update(Request $request, Field $field)
     {
         // Permission check
-        if (!auth()->user()->can('manage fields')) {
+        if (!$request->user()?->hasRole('admin') && !$request->user()?->can('manage fields')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
             'name' => 'string|max:255',
             'type' => 'string|max:255',
-            'price_per_hour' => 'numeric',
+            'description' => 'nullable|string',
+            'price_per_hour' => 'numeric|min:0',
             'is_available' => 'boolean'
         ]);
 
@@ -98,7 +100,9 @@ class FieldController extends Controller
     public function destroy(Field $field)
     {
         // Permission check
-        if (!auth()->user()->can('manage fields')) {
+        $user = request()->user();
+
+        if (!$user?->hasRole('admin') && !$user?->can('manage fields')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 

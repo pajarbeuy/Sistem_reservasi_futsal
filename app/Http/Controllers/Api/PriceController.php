@@ -15,6 +15,7 @@ class PriceController extends Controller
     public function index()
     {
         $prices = Price::where('is_active', true)
+            ->with('field')
             ->orderBy('start_time')
             ->get();
 
@@ -30,11 +31,12 @@ class PriceController extends Controller
     public function store(Request $request)
     {
         // Permission check - only admin
-        if (!auth()->user() || !auth()->user()->can('manage prices')) {
+        if (!$request->user()?->hasRole('admin') && !$request->user()?->can('manage prices')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
+            'field_id' => 'nullable|exists:fields,id',
             'time_period' => 'required|string|max:50',
             'start_time' => 'required|date_format:H:i:s',
             'end_time' => 'required|date_format:H:i:s|after:start_time',
@@ -73,11 +75,12 @@ class PriceController extends Controller
     public function update(Request $request, Price $price)
     {
         // Permission check
-        if (!auth()->user() || !auth()->user()->can('manage prices')) {
+        if (!$request->user()?->hasRole('admin') && !$request->user()?->can('manage prices')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
+            'field_id' => 'nullable|exists:fields,id',
             'time_period' => 'string|max:50',
             'start_time' => 'date_format:H:i:s',
             'end_time' => 'date_format:H:i:s',
@@ -105,7 +108,9 @@ class PriceController extends Controller
     public function destroy(Price $price)
     {
         // Permission check
-        if (!auth()->user() || !auth()->user()->can('manage prices')) {
+        $user = request()->user();
+
+        if (!$user?->hasRole('admin') && !$user?->can('manage prices')) {
             return response()->json(['error' => 'Permission denied.'], 403);
         }
 

@@ -7,7 +7,15 @@ import JadwalGrid from '@/Components/JadwalGrid.vue';
 const fields = ref([]);
 const schedules = ref([]);
 const selectedField = ref(null);
-const selectedDate = ref(new Date().toISOString().split('T')[0]);
+const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const selectedDate = ref(getLocalDateString());
 const loading = ref(false);
 const error = ref('');
 
@@ -97,7 +105,7 @@ const onFieldChange = (fieldId) => {
 };
 
 const getMinDate = () => {
-    return new Date().toISOString().split('T')[0];
+    return getLocalDateString();
 };
 
 onMounted(() => {
@@ -162,6 +170,7 @@ onMounted(() => {
                     <div v-else-if="schedules.length > 0">
                         <JadwalGrid 
                             :items="scheduleItems"
+                            :readonly="true"
                             :start="schedules[0]?.start_time || '08:00'"
                             :end="schedules[schedules.length - 1]?.end_time || '19:30'"
                             :slotDuration="90"

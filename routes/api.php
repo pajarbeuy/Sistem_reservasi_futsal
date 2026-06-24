@@ -36,7 +36,7 @@ Route::group([
     Route::get('/{field}', [FieldController::class, 'show']);
     
     // Admin only operations
-    Route::middleware('auth:api')->group(function () {
+    Route::middleware(['auth:api', 'admin'])->group(function () {
         Route::post('/', [FieldController::class, 'store']);
         Route::put('/{field}', [FieldController::class, 'update']);
         Route::delete('/{field}', [FieldController::class, 'destroy']);
@@ -51,7 +51,7 @@ Route::group([
     Route::get('/{price}', [PriceController::class, 'show']);
     
     // Admin only operations
-    Route::middleware('auth:api')->group(function () {
+    Route::middleware(['auth:api', 'admin'])->group(function () {
         Route::post('/', [PriceController::class, 'store']);
         Route::put('/{price}', [PriceController::class, 'update']);
         Route::delete('/{price}', [PriceController::class, 'destroy']);
@@ -65,6 +65,7 @@ Route::group([
 ], function () {
     Route::get('/available-slots', [ScheduleController::class, 'getAvailableSlots']);
     Route::get('/day-schedule', [ScheduleController::class, 'getDaySchedule']);
+    Route::get('/debug-bookings', function() { return \App\Models\Booking::all(); });
 });
 
 // Bookings (web session or JWT auth required)

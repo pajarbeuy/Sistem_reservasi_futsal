@@ -35,9 +35,7 @@ const loadPrices = async () => {
     }
 };
 
-const onChoose = () => {
-    window.location.href = '/booking-form';
-};
+// onChoose removed since checkout is only allowed from field detail
 
 onMounted(() => {
     loadPrices();
@@ -77,12 +75,12 @@ onMounted(() => {
                                 </p>
                             </div>
                             <p v-if="price.description" class="text-slate-300 text-sm mb-6">{{ price.description }}</p>
-                            <button
-                                @click="onChoose"
-                                class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg transition"
+                            <a
+                                href="/lapangan"
+                                class="block text-center w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg transition"
                             >
-                                Pesan Sekarang
-                            </button>
+                                Lihat Lapangan
+                            </a>
                         </div>
                     </div>
 

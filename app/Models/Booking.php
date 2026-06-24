@@ -2,30 +2,29 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable([
-    'user_id',
-    'booking_code',
-    'field_id',
-    'start_time',
-    'end_time',
-    'total_price',
-    'phone_number',
-    'notes',
-    'status',
-    'payment_status',
-    'payment_method',
-    'paid_at',
-    'confirmed_at',
-    'cancelled_at',
-])]
 class Booking extends Model
 {
+    protected $fillable = [
+        'user_id',
+        'booking_code',
+        'field_id',
+        'start_time',
+        'end_time',
+        'total_price',
+        'phone_number',
+        'notes',
+        'status',
+        'payment_status',
+        'payment_method',
+        'paid_at',
+        'confirmed_at',
+        'cancelled_at',
+    ];
     use HasFactory;
 
     protected $casts = [

@@ -2,17 +2,26 @@
 import { computed, ref } from 'vue';
 
 const props = defineProps({
+    // Data slot jadwal dasar (atomic) yang diterima dari parent, biasanya per 30 menit atau 1 jam
     items: {
         type: Array,
         required: true,
-        // item shape: { start_time: '08:00', end_time: '09:00', status: 'tersedia'|'booked', price_per_hour: 100000, time_period: 'Pagi' }
+        // Contoh bentuk item: { start_time: '08:00', end_time: '09:00', status: 'tersedia'|'booked', price_per_hour: 100000, time_period: 'Pagi' }
+    },
+    // Jika readonly true, user tidak bisa mengklik jadwal (hanya untuk tampilan)
+    readonly: {
+        type: Boolean,
+        default: false,
     },
 });
 
+// Event emit ketika user memilih (mengklik) suatu slot jadwal
 const emit = defineEmits(['choose']);
 
-const selectedDuration = ref(60); // default 1 jam
+// Menyimpan durasi yang sedang dipilih oleh user (default 60 menit / 1 jam)
+const selectedDuration = ref(60); 
 
+// Opsi durasi yang bisa dipilih oleh user di atas grid jadwal
 const durationOptions = [
     { value: 30, label: '30 menit' },
     { value: 60, label: '1 jam' },
@@ -20,6 +29,11 @@ const durationOptions = [
     { value: 120, label: '2 jam' },
 ];
 
+/**
+ * Memformat angka menjadi format mata uang Rupiah (IDR)
+ * @param {number} value - Nominal harga
+ * @returns {string} - Harga dalam format "Rp xxx.xxx"
+ */
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -28,76 +42,93 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
-// Parse "HH:MM" to minutes since midnight
+/**
+ * Mengonversi format jam "HH:MM" menjadi total menit sejak tengah malam (00:00).
+ * Berguna untuk perhitungan durasi dan penambahan waktu secara matematis.
+ * @param {string} timeStr - Waktu dalam format "HH:MM" (contoh: "06:30")
+ * @returns {number} - Total menit (contoh: "06:30" menjadi 390)
+ */
 const timeToMinutes = (timeStr) => {
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
 };
 
-// Format minutes to "HH:MM"
+/**
+ * Mengonversi total menit kembali ke format jam "HH:MM".
+ * @param {number} mins - Total menit sejak tengah malam
+ * @returns {string} - Waktu dalam format "HH:MM" (contoh: 390 menjadi "06:30")
+ */
 const minutesToTime = (mins) => {
     const h = Math.floor(mins / 60).toString().padStart(2, '0');
     const m = (mins % 60).toString().padStart(2, '0');
     return `${h}:${m}`;
 };
 
-// Group slots by their source (start_time) and generate multi-hour slots
+/**
+ * Mengelompokkan dan membangun slot-slot waktu berdasarkan durasi yang dipilih user.
+ * Logika ini akan mencari semua jam mulai (start_time) yang tersedia dari data API, 
+ * lalu memvalidasi apakah untuk blok waktu sepanjang `selectedDuration` ke depan 
+ * semua slot-nya berstatus "tersedia".
+ */
 const groupedSlots = computed(() => {
     const slots = [];
-    const availableItems = props.items.filter(i => i.status === 'tersedia' || i.status === 'Tersedia');
+    // Urutkan item dari waktu paling pagi ke malam
+    const sorted = [...props.items].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
 
-    // Sort by start_time
-    const sorted = [...availableItems].sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+    // Membuat kumpulan (Set) menit dari setiap slot yang statusnya "tersedia".
+    // Digunakan untuk lookup / pencarian ketersediaan secara cepat di dalam loop.
+    const availableStartTimes = new Set(
+        sorted.filter(i => i.status === 'tersedia' || i.status === 'Tersedia').map(s => timeToMinutes(s.start_time))
+    );
 
-    // Build a set of available start times (in minutes)
-    const availableStartTimes = new Set(sorted.map(s => timeToMinutes(s.start_time)));
-    // Also collect end times for each start time to know the range
-    const slotMap = {};
-    sorted.forEach(s => {
-        const key = s.start_time;
-        if (!slotMap[key]) slotMap[key] = s;
-    });
-
-    // For each available start time, if we can fit the selected duration, create a slot
     const duration = selectedDuration.value;
 
+    // Loop ke setiap slot dasar untuk mencoba membuat paket blok berdurasi `duration`
     sorted.forEach(item => {
-        const startMins = timeToMinutes(item.start_time);
-        const endMins = startMins + duration;
-        const endTime = minutesToTime(endMins);
+        const startMins = timeToMinutes(item.start_time); // Waktu mulai blok
+        const endMins = startMins + duration;             // Waktu selesai blok
+        const endTime = minutesToTime(endMins);           // String jam selesai
 
-        // Check if all required 60-min slots within this range are available
         let allAvailable = true;
-        for (let m = startMins; m < endMins; m += 60) {
+        
+        // Cari tahu jeda waktu antar slot dasar dari API (misal 30 menit)
+        const slotStep = sorted.length > 0
+            ? timeToMinutes(sorted[0].end_time) - timeToMinutes(sorted[0].start_time)
+            : 30;
+
+        // Validasi: Cek apakah SETIAP irisan slot dalam rentang durasi ini tersedia
+        // Misal user pilih 2 jam (120 menit) dari 06:00, maka kita cek apakah 06:00, 06:30, 07:00, dan 07:30 tersedia.
+        for (let m = startMins; m < endMins; m += slotStep) {
+            // Jika ada satu saja slot yang tidak ada di Set "tersedia", maka seluruh blok dianggap "Terbooking"
             if (!availableStartTimes.has(m)) {
                 allAvailable = false;
                 break;
             }
         }
 
-        if (allAvailable) {
-            // Calculate total price
-            const totalPrice = (duration / 60) * item.price_per_hour;
+        // Hitung total harga sesuai durasi. Misal durasi 90 menit (1.5 jam) dikalikan harga per jam.
+        const totalPrice = (duration / 60) * item.price_per_hour;
 
-            slots.push({
-                start_time: item.start_time,
-                end_time: endTime,
-                time_period: item.time_period,
-                price_per_hour: item.price_per_hour,
-                total_price: totalPrice,
-                duration_minutes: duration,
-                status: 'Tersedia',
-            });
-        }
+        slots.push({
+            start_time: item.start_time,
+            end_time: endTime,
+            time_period: item.time_period,
+            price_per_hour: item.price_per_hour,
+            total_price: totalPrice,
+            duration_minutes: duration,
+            status: allAvailable ? 'Tersedia' : 'Terbooking',
+        });
     });
 
     return slots;
 });
 
+// Trigger ketika user memilih slot jadwal
 const onChoose = (item) => {
     emit('choose', item);
 };
 
+// Trigger ketika user mengubah opsi durasi
 const onDurationChange = (duration) => {
     selectedDuration.value = duration;
 };
@@ -130,8 +161,16 @@ const onDurationChange = (duration) => {
             <button
                 v-for="item in groupedSlots"
                 :key="`${item.start_time}-${item.end_time}`"
-                @click="onChoose(item)"
-                class="group relative rounded-lg border-2 bg-slate-800/40 p-4 transition-all border-emerald-500/50 hover:border-emerald-500 hover:bg-emerald-500/10 cursor-pointer"
+                @click="!readonly && item.status === 'Tersedia' ? onChoose(item) : null"
+                :disabled="readonly || item.status !== 'Tersedia'"
+                class="group relative rounded-lg border-2 bg-slate-800/40 p-4 transition-all"
+                :class="[
+                    item.status === 'Tersedia' && !readonly
+                        ? 'border-emerald-500/50 hover:border-emerald-500 hover:bg-emerald-500/10 cursor-pointer'
+                        : item.status === 'Tersedia' && readonly
+                        ? 'border-emerald-500/50 cursor-default'
+                        : 'border-red-500/50 cursor-not-allowed opacity-75'
+                ]"
             >
                 <!-- Time Period Name -->
                 <div class="mb-2 text-center">
@@ -153,11 +192,18 @@ const onDurationChange = (duration) => {
                 <!-- Price -->
                 <div class="mb-3 text-center">
                     <p class="text-xs text-orange-400">{{ formatCurrency(item.price_per_hour) }}/jam</p>
-                    <p class="text-sm font-bold text-emerald-400 mt-1">{{ formatCurrency(item.total_price) }}</p>
+                    <p class="text-sm font-bold mt-1" :class="item.status === 'Tersedia' ? 'text-emerald-400' : 'text-slate-400'">{{ formatCurrency(item.total_price) }}</p>
                 </div>
 
                 <!-- Status Badge -->
-                <div class="mx-auto inline-flex px-3 py-1.5 rounded-md font-medium text-sm transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 group-hover:bg-emerald-500/30">
+                <div class="mx-auto inline-flex px-3 py-1.5 rounded-md font-medium text-sm transition-all"
+                     :class="[
+                         item.status === 'Tersedia' && !readonly
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 group-hover:bg-emerald-500/30'
+                            : item.status === 'Tersedia' && readonly
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                     ]">
                     {{ item.status }}
                 </div>
             </button>
@@ -173,12 +219,14 @@ const onDurationChange = (duration) => {
             <button
                 v-for="item in items"
                 :key="item.start_time"
-                @click="onChoose({ ...item, duration_minutes: selectedDuration, total_price: (selectedDuration / 60) * (item.price || item.price_per_hour) })"
-                :disabled="item.status !== 'Tersedia'"
+                @click="!readonly ? onChoose({ ...item, duration_minutes: selectedDuration, total_price: (selectedDuration / 60) * (item.price || item.price_per_hour) }) : null"
+                :disabled="readonly || item.status !== 'Tersedia'"
                 class="group relative rounded-lg border-2 bg-slate-800/40 p-4 transition-all"
                 :class="[
-                    item.status === 'Tersedia'
+                    item.status === 'Tersedia' && !readonly
                         ? 'border-emerald-500/50 hover:border-emerald-500 hover:bg-emerald-500/10 cursor-pointer'
+                        : item.status === 'Tersedia' && readonly
+                        ? 'border-emerald-500/50 cursor-default'
                         : 'border-red-500/50 cursor-not-allowed',
                 ]"
             >
@@ -195,11 +243,13 @@ const onDurationChange = (duration) => {
                 </div>
                 <div
                     class="mx-auto inline-flex px-3 py-1.5 rounded-md font-medium text-sm transition-all"
-                    :class="
-                        item.status === 'Tersedia'
+                    :class="[
+                        item.status === 'Tersedia' && !readonly
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 group-hover:bg-emerald-500/30'
+                            : item.status === 'Tersedia' && readonly
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                    "
+                    ]"
                 >
                     {{ item.status }}
                 </div>

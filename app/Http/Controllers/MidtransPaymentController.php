@@ -86,13 +86,16 @@ class MidtransPaymentController extends Controller
             // Create Snap token
             $snapToken = Snap::getSnapToken($payload);
 
-            // Save payment record
-            Payment::create([
+            // Save or refresh the payment record for this booking.
+            $booking->payment()->updateOrCreate([], [
                 'booking_id' => $booking->id,
                 'amount' => $amount,
                 'payment_method' => 'midtrans',
                 'payment_status' => 'pending',
                 'transaction_id' => $transactionDetails['order_id'],
+                'paid_at' => null,
+                'failed_at' => null,
+                'callback_payload' => null,
             ]);
 
             $booking->update([
